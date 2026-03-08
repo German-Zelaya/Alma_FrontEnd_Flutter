@@ -44,8 +44,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
               const SizedBox(height: 20),
               _buildQuickActions(),
               const SizedBox(height: 20),
-              _buildMoodCheck(),
-              const SizedBox(height: 20),
               _buildUpcomingTasks(),
             ],
           ),
@@ -198,32 +196,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           const SizedBox(height: 6),
           Text(action.label, style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w600)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMoodCheck() {
-    final moods = ['😔', '😐', '🙂', '😊', '🤩'];
-    return AppCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('¿Cómo te sientes hoy?', style: AppTextStyles.heading3),
-          const SizedBox(height: 14),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: moods.map((m) => GestureDetector(
-              onTap: () {
-                // TODO: POST /journal con el estado emocional
-              },
-              child: Container(
-                width: 52, height: 52,
-                decoration: BoxDecoration(color: AppColors.surfaceVariant, borderRadius: BorderRadius.circular(14)),
-                child: Center(child: Text(m, style: const TextStyle(fontSize: 26))),
-              ),
-            )).toList(),
-          ),
         ],
       ),
     );

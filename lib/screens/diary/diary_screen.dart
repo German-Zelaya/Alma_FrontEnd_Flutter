@@ -1,11 +1,10 @@
 // ════════════════════════════════════════════════════════════
-//  DEV 1 — DIARIO EMOCIONAL
-//  POST /journal → nueva entrada + respuesta IA (Bedrock)
-//  GET  /journal → historial de entradas
+//  DEV 1 — DIARIO EMOCIONAL (MODO LOCAL)
 // ════════════════════════════════════════════════════════════
 import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/shared_widgets.dart';
+import '../../services/api_service.dart';
 
 class DiaryScreen extends StatefulWidget {
   const DiaryScreen({super.key});
@@ -13,17 +12,60 @@ class DiaryScreen extends StatefulWidget {
   State<DiaryScreen> createState() => _DiaryScreenState();
 }
 
-class _DiaryScreenState extends State<DiaryScreen> with SingleTickerProviderStateMixin {
+class _DiaryScreenState extends State<DiaryScreen>
+    with SingleTickerProviderStateMixin {
+  static const _kDefaultMood = '😐';
+  static const _kMoods = ['😢', '😔', '😐', '🙂', '😊', '🤩'];
+  static const _kMonths = [
+    'ene', 'feb', 'mar', 'abr', 'may', 'jun',
+    'jul', 'ago', 'sep', 'oct', 'nov', 'dic',
+  ];
+
+  final Map<String, String> _moodQuestions = {
+    '😢': 'Siento que hoy ha sido un día difícil... ¿Qué es lo que más te hace sentir así? 💜',
+    '😔': 'Parece que algo te preocupa... ¿Quieres desahogarte y contarme qué tienes en mente? 🌸',
+    '😐': 'Un día tranquilo... ¿Qué ha sido lo más relevante de tu jornada hoy? ✨',
+    '🙂': '¡Me alegra que estés bien! ¿Hubo algo especial que te hizo sonreír hoy? 😊',
+    '😊': '¡Qué bonita energía! Cuéntame, ¿qué te hace sentir tan plena hoy? 🌟',
+    '🤩': '¡Increíble! Esa emoción es contagiosa. ¡Cuéntame qué te hace brillar hoy! 💖',
+  };
+
+  final Map<String, List<String>> _localResponses = {
+    '😢': [
+      'Lamento mucho que te sientas así. Recuerda que está bien no estar bien. Estoy aquí para escucharte. 💜',
+      'Mañana será un nuevo comienzo. Por ahora, intenta descansar y ser amable contigo misma. 🌸'
+    ],
+    '😔': [
+      'Gracias por confiarme esto. A veces soltar lo que nos pesa es el primer paso para sanar. ✨',
+      'Eres muy valiente al expresar lo que sientes. No estás sola en esto. 💜'
+    ],
+    '😐': [
+      'Entiendo. A veces los días simplemente fluyen. Lo importante es que te has tomado un momento para ti. 🌿',
+      'Gracias por registrar tu día. Mañana seguiremos adelante. ✨'
+    ],
+    '🙂': [
+      '¡Me alegra leer esto! Qué bueno que hayas tenido un momento positivo hoy. 😊',
+      '¡Sigue así! Cultivar esos pequeños momentos de bienestar hace la diferencia. 🌟'
+    ],
+    '😊': [
+      '¡Qué alegría! Tu bienestar es prioridad. Me encanta que compartas tu felicidad conmigo. 💖',
+      '¡Excelente día! Guarda este sentimiento para cuando necesites un extra de energía. 🤩'
+    ],
+    '🤩': [
+      '¡Increíble! Esa energía es maravillosa. ¡Me hace muy feliz que estés brillando así hoy! 🌟✨',
+      '¡Brillante! Disfruta al máximo este momento, te lo mereces. 💜'
+    ],
+  };
+
   late TabController _tabCtrl;
   final _entryCtrl = TextEditingController();
-  bool _loading = false;
+  bool _loadingSubmit = false;
+  bool _loadingHistory = false;
   String? _aiResponse;
+  String _selectedMood = _kDefaultMood;
 
-  // TODO: Obtener de GET /journal
-  final List<_DiaryEntry> _entries = [
-    _DiaryEntry('Hoy me sentí muy productiva y agradecida por las pequeñas cosas.', '😊', DateTime.now().subtract(const Duration(days: 1)), 'Qué hermoso que puedas notar esas pequeñas alegrías...'),
-    _DiaryEntry('Tuve un día difícil, me sentí abrumada con el trabajo.', '😔', DateTime.now().subtract(const Duration(days: 2)), 'Es completamente válido sentirse así. Recuerda...'),
-  ];
+  // Usamos una lista estática para que los datos persistan durante la sesión
+  static final List<_DiaryEntry> _entries = [];
 
   @override
   void initState() {
@@ -31,28 +73,67 @@ class _DiaryScreenState extends State<DiaryScreen> with SingleTickerProviderStat
     _tabCtrl = TabController(length: 2, vsync: this);
   }
 
-  Future<void> _submitEntry() async {
-    if (_entryCtrl.text.trim().isEmpty) return;
-    setState(() { _loading = true; _aiResponse = null; });
+  @override
+  void dispose() {
+    _tabCtrl.dispose();
+    _entryCtrl.dispose();
+    super.dispose();
+  }
 
-    // TODO: Llamar POST /journal con el texto
-    // final response = await apiCall('/journal', 'POST', { 'text': _entryCtrl.text });
-    // _aiResponse = response['ai_response'];
-    await Future.delayed(const Duration(seconds: 2));
+  // ── Simulación de carga de historial ──────────────────
+  Future<void> _loadHistory() async {
+    // Ya no llamamos al backend
+    setState(() => _loadingHistory = false);
+  }
+
+  // ── Guardado local y respuesta personalizada ──────────
+  Future<void> _submitEntry() async {
+    final text = _entryCtrl.text.trim();
+    if (text.isEmpty) return;
+
     setState(() {
-      _aiResponse = 'Gracias por compartir esto conmigo 💜. Lo que describes muestra mucha valentía y autoconciencia. Recuerda que cada sentimiento tiene su valor y es parte de tu camino.';
-      _loading = false;
+      _loadingSubmit = true;
+      _aiResponse = null;
     });
+
+    // Simulamos un pequeño retraso para que parezca que la IA "piensa"
+    await Future.delayed(const Duration(seconds: 1));
+
+    // Obtener respuesta personalizada
+    final responses = _localResponses[_selectedMood] ?? ['Gracias por compartir esto conmigo. 💜'];
+    final aiResp = (responses..shuffle()).first;
+
+    final newEntry = _DiaryEntry(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      text: text,
+      mood: _selectedMood,
+      date: DateTime.now(),
+      aiResponse: aiResp,
+    );
+
+    if (mounted) {
+      setState(() {
+        _aiResponse = aiResp;
+        _entries.insert(0, newEntry); 
+        _loadingSubmit = false;
+      });
+      _entryCtrl.clear();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return GradientScaffold(
       appBar: AppBar(
-        leading: IconButton(icon: const Icon(Icons.arrow_back_rounded), onPressed: () => Navigator.pop(context)),
+        leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded),
+            onPressed: () => Navigator.pop(context)),
         title: const Text('Diario Emocional'),
         actions: [
-          IconButton(icon: const Icon(Icons.history_rounded, color: AppColors.primary), onPressed: () => _tabCtrl.animateTo(1)),
+          IconButton(
+            icon: const Icon(Icons.history_rounded, color: AppColors.primary),
+            onPressed: () => _tabCtrl.animateTo(1),
+          ),
         ],
         bottom: TabBar(
           controller: _tabCtrl,
@@ -81,49 +162,65 @@ class _DiaryScreenState extends State<DiaryScreen> with SingleTickerProviderStat
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Mood selector
           AppCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('¿Cómo te sientes ahora?', style: AppTextStyles.heading3),
+                const Text('¿Cómo te sientes ahora?',
+                    style: AppTextStyles.heading3),
                 const SizedBox(height: 14),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: ['😢', '😔', '😐', '🙂', '😊', '🤩'].map((e) =>
-                    GestureDetector(
-                      onTap: () {},
-                      child: Container(
-                        width: 46, height: 46,
-                        decoration: BoxDecoration(color: AppColors.surfaceVariant, borderRadius: BorderRadius.circular(12)),
-                        child: Center(child: Text(e, style: const TextStyle(fontSize: 24))),
+                  children: _kMoods.map((e) {
+                    final selected = _selectedMood == e;
+                    return GestureDetector(
+                      onTap: () => setState(() => _selectedMood = e),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        width: 46,
+                        height: 46,
+                        decoration: BoxDecoration(
+                          color: selected
+                              ? AppColors.primary.withOpacity(0.15)
+                              : AppColors.surfaceVariant,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: selected
+                                ? AppColors.primary
+                                : Colors.transparent,
+                            width: 2,
+                          ),
+                        ),
+                        child: Center(
+                            child: Text(e,
+                                style: TextStyle(
+                                    fontSize: selected ? 26 : 22))),
                       ),
-                    )
-                  ).toList(),
+                    );
+                  }).toList(),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 16),
-
-          // Texto libre
           AppCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    const Icon(Icons.edit_note_rounded, color: AppColors.primary, size: 20),
-                    const SizedBox(width: 8),
-                    const Text('Cuéntame sobre tu día', style: AppTextStyles.heading3),
-                  ],
-                ),
+                Row(children: [
+                  const Icon(Icons.edit_note_rounded,
+                      color: AppColors.primary, size: 20),
+                  const SizedBox(width: 8),
+                  const Text('Cuéntame sobre tu día',
+                      style: AppTextStyles.heading3),
+                ]),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _entryCtrl,
                   maxLines: 8,
-                  decoration: const InputDecoration(
-                    hintText: 'Escribe libremente... Este es tu espacio seguro 🌸',
+                  decoration: InputDecoration(
+                    hintText: _moodQuestions[_selectedMood] ??
+                        'Escribe libremente... Este es tu espacio seguro 🌸',
                     border: InputBorder.none,
                     enabledBorder: InputBorder.none,
                     focusedBorder: InputBorder.none,
@@ -135,26 +232,27 @@ class _DiaryScreenState extends State<DiaryScreen> with SingleTickerProviderStat
             ),
           ),
           const SizedBox(height: 16),
-
-          // Respuesta de IA
-          if (_loading)
+          if (_loadingSubmit)
             AppCard(
               child: Column(
                 children: [
-                  const CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2.5),
+                  const SizedBox(height: 8),
+                  const CircularProgressIndicator(
+                      color: AppColors.primary, strokeWidth: 2.5),
                   const SizedBox(height: 12),
-                  Text('Procesando tu entrada...', style: AppTextStyles.bodySecondary),
+                  Text('Alma está leyendo tu entrada...',
+                      style: AppTextStyles.bodySecondary),
+                  const SizedBox(height: 8),
                 ],
               ),
             )
           else if (_aiResponse != null)
             _buildAIResponse(_aiResponse!),
-
           const SizedBox(height: 20),
           AppButton(
-            label: _loading ? 'Enviando...' : 'Enviar al diario 💜',
-            isLoading: _loading,
-            onPressed: _submitEntry,
+            label: _loadingSubmit ? 'Enviando...' : 'Enviar al diario 💜',
+            isLoading: _loadingSubmit,
+            onPressed: _loadingSubmit ? null : _submitEntry,
             width: double.infinity,
           ),
         ],
@@ -168,7 +266,8 @@ class _DiaryScreenState extends State<DiaryScreen> with SingleTickerProviderStat
       decoration: BoxDecoration(
         gradient: AppColors.cardGradient,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primaryLight.withOpacity(0.4)),
+        border:
+            Border.all(color: AppColors.primaryLight.withOpacity(0.4)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -177,18 +276,39 @@ class _DiaryScreenState extends State<DiaryScreen> with SingleTickerProviderStat
             children: [
               Image.asset('assets/images/logo.png', width: 36, height: 36),
               const SizedBox(width: 10),
-              const Text('Respuesta de Alma', style: AppTextStyles.heading3),
+              const Text('Respuesta de Alma',
+                  style: AppTextStyles.heading3),
             ],
           ),
           const SizedBox(height: 12),
-          Text(response, style: AppTextStyles.body.copyWith(height: 1.7)),
+          Text(response,
+              style: AppTextStyles.body.copyWith(height: 1.7)),
         ],
       ),
     );
   }
 
   Widget _buildHistoryTab() {
-    // TODO: Cargar de GET /journal
+    if (_entries.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(40),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('📖', style: TextStyle(fontSize: 52)),
+              const SizedBox(height: 16),
+              const Text('Tu diario está vacío',
+                  style: AppTextStyles.heading3),
+              const SizedBox(height: 8),
+              Text('Escribe tu primera entrada en la pestaña "Escribir"',
+                  style: AppTextStyles.bodySecondary,
+                  textAlign: TextAlign.center),
+            ],
+          ),
+        ),
+      );
+    }
     return ListView.separated(
       padding: const EdgeInsets.all(20),
       itemCount: _entries.length,
@@ -203,28 +323,36 @@ class _DiaryScreenState extends State<DiaryScreen> with SingleTickerProviderStat
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Text(entry.mood, style: const TextStyle(fontSize: 24)),
-              const SizedBox(width: 10),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(_formatDate(entry.date), style: AppTextStyles.caption),
-                  const Text('Entrada del diario', style: AppTextStyles.bodySecondary),
-                ],
-              ),
-              const Spacer(),
-              const Icon(Icons.chevron_right_rounded, color: AppColors.textLight),
-            ],
-          ),
+          Row(children: [
+            Text(entry.mood, style: const TextStyle(fontSize: 24)),
+            const SizedBox(width: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(_formatDate(entry.date), style: AppTextStyles.caption),
+                const Text('Entrada del diario',
+                    style: AppTextStyles.bodySecondary),
+              ],
+            ),
+            const Spacer(),
+            const Icon(Icons.chevron_right_rounded,
+                color: AppColors.textLight),
+          ]),
           const SizedBox(height: 10),
-          Text(entry.text, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppTextStyles.body.copyWith(height: 1.5)),
+          Text(entry.text,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.body.copyWith(height: 1.5)),
           const SizedBox(height: 10),
           Container(
             padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: AppColors.surfaceVariant, borderRadius: BorderRadius.circular(10)),
-            child: Text('💜 ${entry.aiResponse}', maxLines: 2, overflow: TextOverflow.ellipsis, style: AppTextStyles.caption),
+            decoration: BoxDecoration(
+                color: AppColors.surfaceVariant,
+                borderRadius: BorderRadius.circular(10)),
+            child: Text('💜 ${entry.aiResponse}',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.caption),
           ),
         ],
       ),
@@ -242,22 +370,32 @@ class _DiaryScreenState extends State<DiaryScreen> with SingleTickerProviderStat
           padding: const EdgeInsets.all(24),
           decoration: const BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            borderRadius:
+                BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: SingleChildScrollView(
             controller: ctrl,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.textLight, borderRadius: BorderRadius.circular(2)))),
+                Center(
+                    child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                            color: AppColors.textLight,
+                            borderRadius: BorderRadius.circular(2)))),
                 const SizedBox(height: 20),
                 Row(children: [
-                  Text(entry.mood, style: const TextStyle(fontSize: 36)),
+                  Text(entry.mood,
+                      style: const TextStyle(fontSize: 36)),
                   const SizedBox(width: 12),
-                  Text(_formatDate(entry.date), style: AppTextStyles.bodySecondary),
+                  Text(_formatDate(entry.date),
+                      style: AppTextStyles.bodySecondary),
                 ]),
                 const SizedBox(height: 16),
-                Text(entry.text, style: AppTextStyles.body.copyWith(height: 1.7)),
+                Text(entry.text,
+                    style: AppTextStyles.body.copyWith(height: 1.7)),
                 const SizedBox(height: 20),
                 const Divider(),
                 const SizedBox(height: 16),
@@ -267,9 +405,17 @@ class _DiaryScreenState extends State<DiaryScreen> with SingleTickerProviderStat
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('💜 Respuesta de Alma', style: AppTextStyles.heading3),
+                      Row(children: [
+                        Image.asset('assets/images/logo.png',
+                            width: 28, height: 28),
+                        const SizedBox(width: 8),
+                        const Text('💜 Respuesta de Alma',
+                            style: AppTextStyles.heading3),
+                      ]),
                       const SizedBox(height: 8),
-                      Text(entry.aiResponse, style: AppTextStyles.body.copyWith(height: 1.7)),
+                      Text(entry.aiResponse,
+                          style:
+                              AppTextStyles.body.copyWith(height: 1.7)),
                     ],
                   ),
                 ),
@@ -281,15 +427,31 @@ class _DiaryScreenState extends State<DiaryScreen> with SingleTickerProviderStat
     );
   }
 
-  String _formatDate(DateTime d) {
-    return '${d.day}/${d.month}/${d.year}';
-  }
+  String _formatDate(DateTime d) =>
+      '${d.day} ${_kMonths[d.month - 1]} ${d.year}';
 }
 
 class _DiaryEntry {
+  final String id;
   final String text;
   final String mood;
   final DateTime date;
   final String aiResponse;
-  _DiaryEntry(this.text, this.mood, this.date, this.aiResponse);
+
+  _DiaryEntry({
+    required this.id,
+    required this.text,
+    required this.mood,
+    required this.date,
+    required this.aiResponse,
+  });
+
+  factory _DiaryEntry.fromJson(Map<String, dynamic> json) => _DiaryEntry(
+        id: json['id']?.toString() ?? '',
+        text: json['text']?.toString() ?? '',
+        mood: json['mood']?.toString() ?? '😐',
+        date: DateTime.tryParse(json['createdAt']?.toString() ?? '') ??
+            DateTime.now(),
+        aiResponse: json['ai_response']?.toString() ?? '',
+      );
 }
