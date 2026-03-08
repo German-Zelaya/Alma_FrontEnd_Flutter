@@ -2,17 +2,15 @@
 //  CAPA DE SERVICIO API — api_service.dart
 //  Función compartida: apiCall(route, method, body)
 //  Todos los devs usan este archivo para llamar a la API
-//  Equivalente al SDK compartido del Dev 1
 // ════════════════════════════════════════════════════════════
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 // ─── CONSTANTES ───────────────────────────────────────────
-const String _baseUrl = 'https://TU_API_GATEWAY_URL.execute-api.us-east-1.amazonaws.com/prod';
-// TODO: Reemplazar con la URL real del API Gateway del Dev 1
+const String _baseUrl = 'http://192.168.43.224:3000';
 
-// ─── ALMACENAMIENTO SEGURO DE TOKEN ───────────────────────
+// ─── ALMACENAMIENTO SEGURO ────────────────────────────────
 const _storage = FlutterSecureStorage();
 
 class ApiService {
@@ -26,26 +24,38 @@ class ApiService {
     await _storage.write(key: 'jwt_token', value: token);
   }
 
-  // ── Eliminar token al cerrar sesión ───────────────────
+  // ── Guardar userId tras login ──────────────────────────
+  static Future<void> saveUserId(String userId) async {
+    await _storage.write(key: 'user_id', value: userId);
+  }
+
+  // ── Obtener userId del storage ─────────────────────────
+  static Future<String?> getUserId() async {
+    return await _storage.read(key: 'user_id');
+  }
+
+  // ── Eliminar sesión al cerrar sesión ──────────────────
   static Future<void> clearToken() async {
     await _storage.delete(key: 'jwt_token');
+    await _storage.delete(key: 'user_id');
   }
 
   // ══════════════════════════════════════════════════════
-  //  FUNCIÓN PRINCIPAL — apiCall(route, method, body)
-  //  Equivalente al apiCall() compartido del Dev 1
+  //  REQUEST INTERNO — retorna dynamic (Map o List)
   // ══════════════════════════════════════════════════════
-  static Future<Map<String, dynamic>> apiCall(
+  static Future<dynamic> _makeRequest(
     String route,
     String method, {
     Map<String, dynamic>? body,
     Map<String, String>? queryParams,
+    Map<String, String>? extraHeaders,
   }) async {
     final token = await _getToken();
     final headers = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
       if (token != null) 'Authorization': 'Bearer $token',
+      ...?extraHeaders,
     };
 
     Uri uri = Uri.parse('$_baseUrl$route');
@@ -77,8 +87,8 @@ class ApiService {
       }
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        if (response.body.isEmpty) return {};
-        return jsonDecode(response.body) as Map<String, dynamic>;
+        if (response.body.isEmpty) return <String, dynamic>{};
+        return jsonDecode(response.body);
       } else {
         throw ApiException(
           statusCode: response.statusCode,
@@ -90,6 +100,42 @@ class ApiService {
     } catch (e) {
       throw ApiException(message: 'Error de conexión: $e');
     }
+  }
+
+  // ══════════════════════════════════════════════════════
+  //  FUNCIÓN PRINCIPAL — retorna Map<String, dynamic>
+  // ══════════════════════════════════════════════════════
+  static Future<Map<String, dynamic>> apiCall(
+    String route,
+    String method, {
+    Map<String, dynamic>? body,
+    Map<String, String>? queryParams,
+    Map<String, String>? extraHeaders,
+  }) async {
+    final result = await _makeRequest(route, method,
+        body: body, queryParams: queryParams, extraHeaders: extraHeaders);
+    if (result is Map<String, dynamic>) return result;
+    return {'data': result};
+  }
+
+  // ══════════════════════════════════════════════════════
+  //  VARIANTE LISTA — para endpoints que devuelven array
+  // ══════════════════════════════════════════════════════
+  static Future<List<dynamic>> apiCallList(
+    String route,
+    String method, {
+    Map<String, dynamic>? body,
+    Map<String, String>? queryParams,
+    Map<String, String>? extraHeaders,
+  }) async {
+    final result = await _makeRequest(route, method,
+        body: body, queryParams: queryParams, extraHeaders: extraHeaders);
+    if (result is List) return result;
+    if (result is Map && result.containsKey('data')) {
+      final data = result['data'];
+      if (data is List) return data;
+    }
+    return [];
   }
 
   static String _parseErrorMessage(String body) {
@@ -111,16 +157,19 @@ class ApiException implements Exception {
 }
 
 // ══════════════════════════════════════════════════════════
-//  SERVICIOS POR MÓDULO — referencia rápida para todos los devs
+//  SERVICIOS POR MÓDULO
 // ══════════════════════════════════════════════════════════
 
 // ─── DEV 1: Auth + Diario ─────────────────────────────────
 class AuthService {
   static Future<Map<String, dynamic>> login(String email, String password) =>
-    ApiService.apiCall('/auth/login', 'POST', body: {'email': email, 'password': password});
+      ApiService.apiCall('/auth/login', 'POST',
+          body: {'email': email, 'password': password});
 
-  static Future<Map<String, dynamic>> register(String name, String email, String password) =>
-    ApiService.apiCall('/auth/register', 'POST', body: {'name': name, 'email': email, 'password': password});
+  static Future<Map<String, dynamic>> register(
+          String name, String email, String password) =>
+      ApiService.apiCall('/auth/register', 'POST',
+          body: {'name': name, 'email': email, 'password': password});
 
   static Future<void> logout() => ApiService.clearToken();
 }
@@ -128,96 +177,141 @@ class AuthService {
 class JournalService {
   // POST /journal → { text } → { id, ai_response, createdAt }
   static Future<Map<String, dynamic>> createEntry(String text, String mood) =>
-    ApiService.apiCall('/journal', 'POST', body: {'text': text, 'mood': mood});
+      ApiService.apiCall('/journal', 'POST', body: {'text': text, 'mood': mood});
 
   // GET /journal → [ { id, text, mood, ai_response, createdAt } ]
   static Future<Map<String, dynamic>> getHistory() =>
-    ApiService.apiCall('/journal', 'GET');
+      ApiService.apiCall('/journal', 'GET');
 }
 
 // ─── DEV 2: Hábitos + Ciclo + Metas ──────────────────────
 class HabitsService {
-  // POST /habits/log → { habit, value, date }
   static Future<Map<String, dynamic>> logHabit(String habit, bool value) =>
-    ApiService.apiCall('/habits/log', 'POST', body: {'habit': habit, 'value': value, 'date': DateTime.now().toIso8601String()});
+      ApiService.apiCall('/habits/log', 'POST', body: {
+        'habit': habit,
+        'value': value,
+        'date': DateTime.now().toIso8601String()
+      });
 
-  // GET /habits/summary → { summary: 'IA text', weeklyData: [...] }
   static Future<Map<String, dynamic>> getWeeklySummary() =>
-    ApiService.apiCall('/habits/summary', 'GET');
+      ApiService.apiCall('/habits/summary', 'GET');
 }
 
 class CycleService {
-  // GET /cycle/current → { phase, day, recommendations: [...] }
   static Future<Map<String, dynamic>> getCurrentCycle() =>
-    ApiService.apiCall('/cycle/current', 'GET');
+      ApiService.apiCall('/cycle/current', 'GET');
 
-  // POST /cycle/log → { startDate, cycleLength }
-  static Future<Map<String, dynamic>> logCycle(DateTime startDate, int length) =>
-    ApiService.apiCall('/cycle/log', 'POST', body: {'startDate': startDate.toIso8601String(), 'cycleLength': length});
+  static Future<Map<String, dynamic>> logCycle(
+          DateTime startDate, int length) =>
+      ApiService.apiCall('/cycle/log', 'POST', body: {
+        'startDate': startDate.toIso8601String(),
+        'cycleLength': length
+      });
 }
 
 class GoalsService {
-  // GET /goals → [ { id, title, category, progress } ]
   static Future<Map<String, dynamic>> getGoals() =>
-    ApiService.apiCall('/goals', 'GET');
+      ApiService.apiCall('/goals', 'GET');
 
-  // POST /goals → { title, category }
-  static Future<Map<String, dynamic>> createGoal(String title, String category) =>
-    ApiService.apiCall('/goals', 'POST', body: {'title': title, 'category': category});
+  static Future<Map<String, dynamic>> createGoal(
+          String title, String category) =>
+      ApiService.apiCall('/goals', 'POST',
+          body: {'title': title, 'category': category});
 
-  // POST /goals/advice → { advice: 'IA text' }
   static Future<Map<String, dynamic>> getAdvice(String goalId) =>
-    ApiService.apiCall('/goals/advice', 'POST', body: {'goalId': goalId});
+      ApiService.apiCall('/goals/advice', 'POST', body: {'goalId': goalId});
 }
 
 // ─── DEV 3: Agenda + Crecimiento ─────────────────────────
 class TasksService {
-  // GET /tasks → [ { id, title, priority, completed, date } ]
   static Future<Map<String, dynamic>> getTasks() =>
-    ApiService.apiCall('/tasks', 'GET');
+      ApiService.apiCall('/tasks', 'GET');
 
-  // POST /tasks → { title, priority }
-  static Future<Map<String, dynamic>> createTask(String title, String priority) =>
-    ApiService.apiCall('/tasks', 'POST', body: {'title': title, 'priority': priority});
+  static Future<Map<String, dynamic>> createTask(
+          String title, String priority) =>
+      ApiService.apiCall('/tasks', 'POST',
+          body: {'title': title, 'priority': priority});
 
-  // DELETE /tasks/:id
   static Future<Map<String, dynamic>> deleteTask(String id) =>
-    ApiService.apiCall('/tasks/$id', 'DELETE');
+      ApiService.apiCall('/tasks/$id', 'DELETE');
 
-  // PATCH /tasks/:id → { completed }
   static Future<Map<String, dynamic>> toggleTask(String id, bool completed) =>
-    ApiService.apiCall('/tasks/$id', 'PATCH', body: {'completed': completed});
+      ApiService.apiCall('/tasks/$id', 'PATCH',
+          body: {'completed': completed});
 }
 
 class GrowthService {
-  // GET /growth/tip → { tip: 'IA text', category }
   static Future<Map<String, dynamic>> getDailyTip() =>
-    ApiService.apiCall('/growth/tip', 'GET');
+      ApiService.apiCall('/growth/tip', 'GET');
 }
 
 // ─── DEV 4: Compañía + Soporte + Notificaciones ───────────
+
 class SafetyService {
-  // POST /safety/activate → SNS SMS a contactos
-  static Future<Map<String, dynamic>> activateCompanion() =>
-    ApiService.apiCall('/safety/activate', 'POST');
+  /// Activa alerta de emergencia y notifica a los contactos de confianza.
+  /// Requiere userId, userName y las coordenadas GPS del usuario.
+  static Future<Map<String, dynamic>> activateCompanion({
+    required String userId,
+    required String userName,
+    required double lat,
+    required double lng,
+  }) =>
+      ApiService.apiCall('/safety/activate', 'POST', body: {
+        'userId': userId,
+        'userName': userName,
+        'lat': lat,
+        'lng': lng,
+      });
 
-  // GET /safety/contacts → [ { name, phone } ]
-  static Future<Map<String, dynamic>> getContacts() =>
-    ApiService.apiCall('/safety/contacts', 'GET');
+  /// Obtiene la lista de contactos de emergencia del usuario.
+  /// Devuelve un array: [{ id, userId, name, phone }]
+  static Future<List<dynamic>> getContacts(String userId) =>
+      ApiService.apiCallList('/safety/contacts', 'GET',
+          queryParams: {'userId': userId});
 
-  // POST /safety/contacts → { name, phone }
-  static Future<Map<String, dynamic>> addContact(String name, String phone) =>
-    ApiService.apiCall('/safety/contacts', 'POST', body: {'name': name, 'phone': phone});
+  /// Crea un nuevo contacto de emergencia.
+  static Future<Map<String, dynamic>> addContact(
+          String userId, String name, String phone) =>
+      ApiService.apiCall('/safety/contacts', 'POST',
+          body: {'userId': userId, 'name': name, 'phone': phone});
+
+  /// Elimina un contacto de emergencia por su ID.
+  static Future<Map<String, dynamic>> deleteContact(
+          String contactId, String userId) =>
+      ApiService.apiCall('/safety/contacts/$contactId', 'DELETE',
+          queryParams: {'userId': userId});
 }
 
 class SupportService {
-  // POST /support/chat → { message, history } → { response, isCrisis }
-  static Future<Map<String, dynamic>> sendMessage(String message, List<Map<String, String>> history) =>
-    ApiService.apiCall('/support/chat', 'POST', body: {'message': message, 'history': history});
+  /// Envía un mensaje al chat de soporte IA (Bedrock).
+  /// Requiere el userId en el header x-user-id.
+  /// Respuesta: { response: string, isCrisis: bool }
+  static Future<Map<String, dynamic>> sendMessage(
+          String message, String userId) =>
+      ApiService.apiCall('/support/chat', 'POST',
+          body: {'message': message},
+          extraHeaders: {'x-user-id': userId});
+}
+
+class NotificationsSmsService {
+  /// Envía un SMS a una lista de números de teléfono.
+  static Future<Map<String, dynamic>> sendSms(
+          List<String> phones, String message) =>
+      ApiService.apiCall('/notifications/send', 'POST',
+          body: {'phones': phones, 'message': message});
+}
+
+class WhatsAppService {
+  /// Envía un mensaje de WhatsApp a un número destino.
+  static Future<Map<String, dynamic>> sendWhatsApp(
+          String to, String message) =>
+      ApiService.apiCall('/whatsapp/send', 'POST',
+          body: {'to': to, 'message': message});
 }
 
 class NotificationsService {
   // POST /notifications/preferences → { dailyReminder, weeklyReport, cycleAlerts, reminderTime }
-  static Future<Map<String, dynamic>> updatePreferences(Map<String, dynamic> prefs) =>
-    ApiService.apiCall('/notifications/preferences', 'POST', body: prefs);
+  static Future<Map<String, dynamic>> updatePreferences(
+          Map<String, dynamic> prefs) =>
+      ApiService.apiCall('/notifications/preferences', 'POST', body: prefs);
 }

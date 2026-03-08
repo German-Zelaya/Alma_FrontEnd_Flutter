@@ -49,7 +49,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 36),
                     ),
                     const SizedBox(height: 16),
-                    const Text('Florece', style: AppTextStyles.heading1),
+                    const Text('Alma', style: AppTextStyles.heading1),
                     const SizedBox(height: 4),
                     const Text('Tu espacio de bienestar emocional', style: AppTextStyles.bodySecondary),
                   ],
