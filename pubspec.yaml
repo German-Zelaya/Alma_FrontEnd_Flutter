@@ -1,0 +1,65 @@
+name: florece_app
+description: Diario emocional para mujeres — Florece App
+
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.6
+
+  # HTTP / API
+  http: ^1.2.0
+  dio: ^5.4.0
+
+  # Estado global
+  provider: ^6.1.1
+
+  # Auth - AWS Cognito / Amplify
+  # amplify_flutter: ^2.0.0
+  # amplify_auth_cognito: ^2.0.0
+  # amplify_api: ^2.0.0
+
+  # Almacenamiento local seguro (tokens)
+  flutter_secure_storage: ^9.0.0
+  shared_preferences: ^2.2.2
+
+  # Fecha y hora
+  intl: ^0.19.0
+
+  # Tipografía
+  google_fonts: ^6.2.1
+
+  # Notificaciones locales
+  flutter_local_notifications: ^17.0.0
+
+  # Animaciones
+  lottie: ^3.0.0
+
+  # Imágenes / Caché
+  cached_network_image: ^3.3.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+
+  # Para usar Google Fonts offline (opcional):
+  # fonts:
+  #   - family: Poppins
+  #     fonts:
+  #       - asset: assets/fonts/Poppins-Regular.ttf
+  #       - asset: assets/fonts/Poppins-Medium.ttf
+  #         weight: 500
+  #       - asset: assets/fonts/Poppins-SemiBold.ttf
+  #         weight: 600
+  #       - asset: assets/fonts/Poppins-Bold.ttf
+  #         weight: 700
