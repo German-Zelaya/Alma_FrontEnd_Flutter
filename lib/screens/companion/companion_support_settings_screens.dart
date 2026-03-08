@@ -94,7 +94,7 @@ class _CompanionScreenState extends State<CompanionScreen>
         // y reemplazar con: final pos = await Geolocator.getCurrentPosition();
         await SafetyService.activateCompanion(
           userId: userId,
-          userName: 'Usuario Florece',
+          userName: 'Usuario Alma',
           lat: 0.0,
           lng: 0.0,
         );
@@ -595,18 +595,12 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
             onPressed: () => Navigator.pop(context)),
         title: Row(
           children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: AppDecorations.primaryContainer,
-              child: const Icon(Icons.auto_awesome_rounded,
-                  color: Colors.white, size: 18),
-            ),
+            Image.asset('assets/images/logo.png', width: 36, height: 36),
             const SizedBox(width: 10),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Florece IA', style: AppTextStyles.body),
+                const Text('Alma IA', style: AppTextStyles.body),
                 Text('Soporte emocional',
                     style: AppTextStyles.caption
                         .copyWith(color: AppColors.badgeLow)),

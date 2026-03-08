@@ -175,13 +175,9 @@ class _DiaryScreenState extends State<DiaryScreen> with SingleTickerProviderStat
         children: [
           Row(
             children: [
-              Container(
-                width: 36, height: 36,
-                decoration: AppDecorations.primaryContainer,
-                child: const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 18),
-              ),
+              Image.asset('assets/images/logo.png', width: 36, height: 36),
               const SizedBox(width: 10),
-              const Text('Respuesta empática', style: AppTextStyles.heading3),
+              const Text('Respuesta de Alma', style: AppTextStyles.heading3),
             ],
           ),
           const SizedBox(height: 12),
@@ -271,7 +267,7 @@ class _DiaryScreenState extends State<DiaryScreen> with SingleTickerProviderStat
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('💜 Respuesta de Florece', style: AppTextStyles.heading3),
+                      const Text('💜 Respuesta de Alma', style: AppTextStyles.heading3),
                       const SizedBox(height: 8),
                       Text(entry.aiResponse, style: AppTextStyles.body.copyWith(height: 1.7)),
                     ],

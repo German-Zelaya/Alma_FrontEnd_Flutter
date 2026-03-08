@@ -6,6 +6,7 @@
 import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/shared_widgets.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -72,7 +73,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Hola, $_userName 🌸', style: AppTextStyles.heading1),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text('Hola, $_userName ', style: AppTextStyles.heading1),
+                Image.asset('assets/images/logo.png', width: 30, height: 30),
+              ],
+            ),
             Text(_currentDate(), style: AppTextStyles.bodySecondary),
           ],
         ),
@@ -160,7 +167,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _QuickAction('Diario', Icons.book_outlined, AppColors.primary, '/diary'),
       _QuickAction('Hábitos', Icons.check_box_outlined, AppColors.badgeLow, '/habits'),
       _QuickAction('Metas', Icons.flag_outlined, AppColors.badgeMedium, '/goals'),
-      _QuickAction('Apoyo IA', Icons.chat_bubble_outline_rounded, AppColors.badgeHigh, '/support'),
     ];
 
     return Column(

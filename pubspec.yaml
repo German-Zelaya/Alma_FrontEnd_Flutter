@@ -1,5 +1,5 @@
-name: florece_app
-description: Diario emocional para mujeres — Florece App
+name: alma_app
+description: Diario emocional para mujeres — Alma App
 
 publish_to: 'none'
 
@@ -51,6 +51,9 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  assets:
+    - assets/images/
 
   # Para usar Google Fonts offline (opcional):
   # fonts:

@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════
-//  FLORECE APP — main.dart
+//  ALMA APP — main.dart
 //  Diario emocional para mujeres
 //  Arquitectura: Flutter + AWS (Cognito, Lambda, DynamoDB, Bedrock, SNS)
 // ════════════════════════════════════════════════════════════
@@ -13,16 +13,16 @@ import 'screens/agenda/agenda_growth_screens.dart';
 import 'screens/companion/companion_support_settings_screens.dart';
 
 void main() {
-  runApp(const FloreceApp());
+  runApp(const AlmaApp());
 }
 
-class FloreceApp extends StatelessWidget {
-  const FloreceApp({super.key});
+class AlmaApp extends StatelessWidget {
+  const AlmaApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Florece',
+      title: 'Alma',
       debugShowCheckedModeBanner: false,
       theme: appTheme(),
       initialRoute: '/login',

@@ -4,6 +4,7 @@
 //  Hook expuesto: useAuth() → user.id, token
 // ════════════════════════════════════════════════════════════
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/shared_widgets.dart';
 
@@ -43,13 +44,20 @@ class _LoginScreenState extends State<LoginScreen> {
               Center(
                 child: Column(
                   children: [
-                    Container(
-                      width: 72, height: 72,
-                      decoration: AppDecorations.primaryContainer,
-                      child: const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 36),
+                    Image.asset('assets/images/logo.png', width: 96, height: 96),
+                    const SizedBox(height: 12),
+                    ShaderMask(
+                      shaderCallback: (bounds) => AppColors.primaryGradient.createShader(bounds),
+                      child: Text(
+                        'Alma',
+                        style: GoogleFonts.playfairDisplay(
+                          fontSize: 52,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          letterSpacing: 2,
+                        ),
+                      ),
                     ),
-                    const SizedBox(height: 16),
-                    const Text('Alma', style: AppTextStyles.heading1),
                     const SizedBox(height: 4),
                     const Text('Tu espacio de bienestar emocional', style: AppTextStyles.bodySecondary),
                   ],
